@@ -2,12 +2,54 @@
   {
     "name": "week",
     "title": "This week",
-    "subtitle": "Drug Safety for Claude Code: what needs attention, rendered by npm run view",
+    "subtitle": "What needs a person across every product and market, worst first. Rendered by npm run view.",
     "sections": [
       {
-        "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "title": "Regulator deadlines",
+        "note": "Reports past due or due within three days, serious cases with no assessment, follow-ups and safety issues owed to the regulator.",
+        "sql": "select item, rule, detail, days from safety_attention where severity = 1 order by days desc nulls last, item"
+      },
+      {
+        "title": "Overdue work",
+        "sql": "select item, rule, detail, days from safety_attention where severity = 2 order by days desc nulls last, item"
+      },
+      {
+        "title": "Housekeeping",
+        "sql": "select item, rule, detail, days from safety_attention where severity = 3 order by days desc nulls last, item"
+      }
+    ]
+  },
+  {
+    "name": "clock",
+    "title": "The reporting clock",
+    "subtitle": "Every reportable case not yet lodged, soonest deadline first, and the follow-ups that need their own report.",
+    "sections": [
+      {
+        "title": "Cases on the clock",
+        "sql": "select code as case, product, regulator, replace(trigger, '_', ' ') as rule, day_zero, due_on, days_left, coalesce(causality, 'NOT ASSESSED') as causality from case_clock where status = 'open' and reportable and submitted_on is null order by due_on"
+      },
+      {
+        "title": "Follow-up answers owed to the regulator",
+        "sql": "select code as followup, case_code as case, regulator, received_on, report_due, report_due - current_date as days_left from followup_clock where report_due is not null and reported_on is null order by report_due"
+      },
+      {
+        "title": "Safety issues owed to the regulator",
+        "sql": "select code as issue, product, upper(kind) as kind, title, aware_on, due_on from issue_clock where kind in ('ssi','osi') and reported_on is null order by due_on"
+      }
+    ]
+  },
+  {
+    "name": "signals",
+    "title": "Signals",
+    "subtitle": "Reaction terms the label does not list, counted by ingredient, and the safety issues already open.",
+    "sections": [
+      {
+        "title": "Unlisted reactions in the last 90 days",
+        "sql": "select ingredient, term, count(*)::int as cases, string_agg(distinct case_code, ', ') as case_codes from reaction_check where not expected and received_on >= current_date - 90 group by ingredient, term order by count(*) desc, ingredient, term"
+      },
+      {
+        "title": "Open signals and safety issues",
+        "sql": "select code, product, title, kind, opened_on, days_open, due_on from issue_clock where status = 'open' order by opened_on"
       }
     ]
   }

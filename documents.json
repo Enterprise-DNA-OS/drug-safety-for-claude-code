@@ -1,11 +1,70 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
-    "file": "name",
+    "name": "case-report",
+    "title": "Adverse event case report",
+    "for_each": "select id, code from cases where status <> 'nullified' order by code",
+    "file": "code",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "The case",
+        "layout": "record",
+        "sql": "select k.code as case, k.product_name as product, k.market, k.regulator, k.country as country_of_reaction, k.source, k.received_on, k.day_zero, case when k.valid then 'yes' else 'no' end as valid, coalesce(nullif(k.seriousness, ''), replace(k.device_category, '_', ' '), 'non-serious') as seriousness, coalesce(k.causality, 'not assessed') as company_causality, k.due_on as report_due, k.submitted_on as lodged_on, k.reference, k.status from case_clock k where k.id = $1"
+      },
+      {
+        "title": "Reporter and patient",
+        "layout": "record",
+        "sql": "select replace(reporter_type, '_', ' ') as reporter_type, reporter_name as reporter, reporter_contact as contact, patient_initials, patient_age as age, patient_sex as sex from cases where id = $1"
+      },
+      {
+        "title": "Reactions",
+        "sql": "select rc.term, r.onset_on, replace(rc.outcome, '_', ' ') as outcome, case when rc.expected then 'listed' else 'not listed' end as label from reaction_check rc join reactions r on r.id = rc.id join cases c on c.code = rc.case_code where c.id = $1 order by r.onset_on, rc.term"
+      },
+      {
+        "title": "Narrative",
+        "layout": "record",
+        "sql": "select narrative from cases where id = $1"
+      },
+      {
+        "title": "Follow-up",
+        "sql": "select f.code, f.requested_on, f.question, f.received_on, f.answer from followups f where f.case_id = $1 order by f.requested_on"
+      },
+      {
+        "title": "Reports lodged",
+        "sql": "select kind, regulator, submitted_on, reference, submitted_by from submissions where case_id = $1 order by submitted_on"
+      },
+      {
+        "title": "Record of every step",
+        "sql": "select a.created_at as recorded_at, a.actor as by, a.command as step, a.detail from activity a join cases c on c.code = a.record_id where c.id = $1 order by a.id"
+      }
+    ]
+  },
+  {
+    "name": "product-safety-summary",
+    "title": "Product safety summary",
+    "for_each": "select id, code from products where active order by code",
+    "file": "code",
+    "sections": [
+      {
+        "title": "Product",
+        "layout": "record",
+        "sql": "select p.name as product, p.ingredient, p.kind, p.country as market, p.approval_ref, p.approved_on, array_to_string(p.listed_reactions, ', ') as listed_reactions, m.sponsor_name as sponsor, m.pv_contact from products p join markets m on m.country = p.country where p.id = $1"
+      },
+      {
+        "title": "Cases in the last 12 months",
+        "sql": "select k.code, k.received_on, k.country, coalesce(nullif(k.seriousness, ''), replace(k.device_category, '_', ' '), 'non-serious') as seriousness, k.reactions, coalesce(k.causality, '-') as causality, coalesce(k.reference, '-') as lodged_as from case_clock k join products p on p.code = k.product where p.id = $1 and k.status <> 'nullified' and k.received_on >= current_date - 365 order by k.received_on"
+      },
+      {
+        "title": "Reaction terms",
+        "sql": "select rc.term, case when bool_or(rc.expected) then 'listed' else 'not listed' end as label, count(*)::int as cases from reaction_check rc join products p on p.code = rc.product where p.id = $1 group by rc.term order by count(*) desc, rc.term"
+      },
+      {
+        "title": "Signals and safety issues",
+        "sql": "select i.code, i.title, i.kind, i.opened_on, i.reported_on, i.status from issue_clock i join products p on p.code = i.product where p.id = $1 order by i.opened_on"
+      },
+      {
+        "title": "Periodic reports",
+        "sql": "select code, period_from, period_to, due_on, submitted_on, reference from periodic_reports where product_id = $1 order by due_on"
+      }
     ]
   }
 ]

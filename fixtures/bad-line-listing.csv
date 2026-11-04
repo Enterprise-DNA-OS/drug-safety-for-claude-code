@@ -1,0 +1,4 @@
+Case Number,Initial Receipt Date,Suspect Product,Country of Incidence,Event PT
+ARG-BAD-1,not a date,Corvexa 40 mg tablets,Australia,Nausea
+ARG-BAD-2,2026-10-01,Unknown Pill,Australia,Nausea
+ARG-BAD-3,2026-10-01,Corvexa 40 mg tablets,DE,Nausea
